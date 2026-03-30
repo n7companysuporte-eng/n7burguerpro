@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Burguer Pro</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Poppins',sans-serif;}
+body{background:#0f0c29;color:#fff;}
+
+.app{max-width:420px;margin:auto;min-height:100vh;display:flex;flex-direction:column;}
+
+header{
+padding:20px;
+background:linear-gradient(135deg,#1f1c2c,#302b63);
+}
+
+/* LOGO AREA */
+.logo-area{
+display:flex;
+align-items:center;
+gap:10px;
+}
+
+/* LOGO ANIMADA */
+.logo{
+width:40px;
+height:40px;
+border-radius:50%;
+background:linear-gradient(135deg,#ff6b6b,#6c5ce7);
+animation:float 3s ease-in-out infinite, glow 2s infinite alternate;
+box-shadow:0 0 15px rgba(108,92,231,0.6);
+}
+
+@keyframes float{
+0%{transform:translateY(0px);}
+50%{transform:translateY(-6px);}
+100%{transform:translateY(0px);}
+}
+
+@keyframes glow{
+from{box-shadow:0 0 10px #6c5ce7;}
+to{box-shadow:0 0 25px #ff6b6b;}
+}
+
+header h1{font-size:18px;font-weight:600;}
+header span{font-size:12px;color:#a29bfe;}
+
+.screen{display:none;padding:20px;flex:1;overflow:auto;}
+.active{display:block;}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px;}
+
+.card{background:#1c1a3a;padding:15px;border-radius:16px;margin-bottom:10px;}
+
+.big{grid-column:span 2;background:linear-gradient(135deg,#6c5ce7,#4834d4);}
+
+.label{font-size:12px;opacity:0.7;}
+.value{font-size:18px;font-weight:600;margin-top:5px;}
+.alert{font-size:12px;color:#ff7675;margin-top:5px;}
+
+input,select{
+width:100%;padding:10px;margin-top:5px;border-radius:10px;border:none;background:#2a275a;color:#fff;
+}
+
+button{
+width:100%;padding:12px;margin-top:10px;border:none;border-radius:12px;background:#6c5ce7;color:#fff;font-weight:600;
+}
+
+button.danger{background:#e74c3c;}
+
+.nav{display:flex;justify-content:space-around;background:#1f1c2c;padding:10px;}
+.nav button{background:none;color:#fff;font-size:11px;}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<header>
+<div class="logo-area">
+<div class="logo"></div>
+<div>
+<h1>Burguer Pro</h1>
+<span>Controle Inteligente de Negócios</span>
+</div>
+</div>
+</header>
+
+<!-- HOME -->
+<div id="home" class="screen active"></div>
+
+<!-- FINANCEIRO -->
+<div id="financeiro" class="screen">
+<div class="card">
+<input type="number" id="valor" placeholder="Valor do faturamento (opcional)">
+<button onclick="addFinanceiro()">Adicionar Faturamento</button>
+</div>
+<div id="listaFinanceiro"></div>
+</div>
+
+<!-- ESTOQUE -->
+<div id="estoque" class="screen">
+<div class="card">
+<input id="nomeItem" placeholder="Nome do item">
+
+<input type="number" id="entradaItem" placeholder="Entrada (ex: comprou 10)">
+<button onclick="addEntrada()">Adicionar Entrada</button>
+
+<input type="number" id="saidaItem" placeholder="Saída / Uso (ex: usou 5)">
+<button onclick="addSaida()">Registrar Uso</button>
+</div>
+<div id="listaEstoque"></div>
+</div>
+
+<!-- RELATORIO -->
+<div id="relatorio" class="screen">
+<div class="card">
+
+<select id="tipoRel">
+<option value="fin">Faturamento</option>
+<option value="est">Estoque</option>
+</select>
+
+<select id="filtro">
+<option value="7">Últimos 7 dias</option>
+<option value="15">Últimos 15 dias</option>
+<option value="30">Últimos 30 dias</option>
+<option value="custom">Personalizado</option>
+</select>
+
+<input type="date" id="dataInicio">
+<input type="date" id="dataFim">
+
+<button onclick="gerarRelatorio()">Gerar Relatório</button>
+<button onclick="exportarWhats()">Exportar WhatsApp</button>
+<button onclick="exportarExcel()">Exportar Excel</button>
+
+</div>
+
+<div id="resultado"></div>
+
+</div>
+
+<!-- NAV -->
+<div class="nav">
+<button onclick="nav('home')">INÍCIO</button>
+<button onclick="nav('financeiro')">FINANCEIRO</button>
+<button onclick="nav('estoque')">ESTOQUE</button>
+<button onclick="nav('relatorio')">RELATÓRIOS</button>
+</div>
+
+</div>
+
+<script>
+
+// DADOS
+let financeiro = JSON.parse(localStorage.getItem('fin')||'[]');
+let estoque = JSON.parse(localStorage.getItem('est')||'[]');
+
+// NAV
+function nav(id){
+document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+document.getElementById(id).classList.add('active');
+renderHome();
+}
+
+// SALVAR
+function salvar(){
+localStorage.setItem('fin',JSON.stringify(financeiro));
+localStorage.setItem('est',JSON.stringify(estoque));
+render();
+renderHome();
+}
+
+// DASHBOARD
+function renderHome(){
+
+let hoje=new Date().toDateString();
+
+let hojeTotal=financeiro.filter(f=>new Date(f.data).toDateString()==hoje)
+.reduce((a,b)=>a+b.valor,0);
+
+let semanaTotal=financeiro.filter(f=>{
+let d=new Date(f.data);
+let limite=new Date();
+limite.setDate(limite.getDate()-7);
+return d>=limite;
+}).reduce((a,b)=>a+b.valor,0);
+
+let estoqueTotal=estoque.reduce((a,b)=>a+b.qtd,0);
+let baixo=estoque.filter(e=>e.qtd<=5);
+
+document.getElementById('home').innerHTML=`
+<div class="card big">
+<div class="label">Faturamento Hoje</div>
+<div class="value">R$ ${hojeTotal.toFixed(2)}</div>
+</div>
+
+<div class="grid">
+
+<div class="card">
+<div class="label">Últimos 7 dias</div>
+<div class="value">R$ ${semanaTotal.toFixed(2)}</div>
+</div>
+
+<div class="card">
+<div class="label">Itens em Estoque</div>
+<div class="value">${estoqueTotal}</div>
+</div>
+
+<div class="card big">
+<div class="label">Alertas de Estoque</div>
+<div class="value">${baixo.length} itens com baixo estoque</div>
+${baixo.map(i=>`<div class="alert">${i.nome} (${i.qtd})</div>`).join('')}
+</div>
+
+</div>
+`;
+}
+
+// FINANCEIRO
+function addFinanceiro(){
+let v=parseFloat(document.getElementById('valor').value||0);
+financeiro.push({valor:v,data:new Date().toISOString()});
+salvar();
+}
+
+function removerFinanceiro(i){
+financeiro.splice(i,1);
+salvar();
+}
+
+// ESTOQUE
+function addEntrada(){
+let nome=document.getElementById('nomeItem').value.toLowerCase();
+let qtd=parseInt(document.getElementById('entradaItem').value);
+if(!nome||!qtd)return;
+
+let item=estoque.find(e=>e.nome===nome);
+item?item.qtd+=qtd:estoque.push({nome,qtd});
+
+salvar();
+}
+
+function addSaida(){
+let nome=document.getElementById('nomeItem').value.toLowerCase();
+let qtd=parseInt(document.getElementById('saidaItem').value);
+if(!nome||!qtd)return;
+
+let item=estoque.find(e=>e.nome===nome);
+if(item){
+item.qtd-=qtd;
+if(item.qtd<0)item.qtd=0;
+}
+salvar();
+}
+
+function removerEstoque(i){
+estoque.splice(i,1);
+salvar();
+}
+
+// RENDER
+function render(){
+
+document.getElementById('listaFinanceiro').innerHTML=
+financeiro.map((f,i)=>`
+<div class="card">
+R$ ${f.valor.toFixed(2)}<br>
+${new Date(f.data).toLocaleDateString()}
+<button class="danger" onclick="removerFinanceiro(${i})">Remover</button>
+</div>`).join('');
+
+document.getElementById('listaEstoque').innerHTML=
+estoque.map((e,i)=>`
+<div class="card">
+<b>${e.nome}</b><br>
+Quantidade: ${e.qtd}
+<button class="danger" onclick="removerEstoque(${i})">Remover</button>
+</div>`).join('');
+}
+
+// RELATÓRIO
+function gerarRelatorio(){
+
+let tipo=document.getElementById('tipoRel').value;
+let filtro=document.getElementById('filtro').value;
+
+let inicio=new Date();
+let fim=new Date();
+
+if(filtro!="custom"){
+inicio.setDate(inicio.getDate()-parseInt(filtro));
+}else{
+inicio=new Date(document.getElementById('dataInicio').value);
+fim=new Date(document.getElementById('dataFim').value);
+}
+
+if(tipo=="fin"){
+
+let dados=financeiro.filter(f=>{
+let d=new Date(f.data);
+return d>=inicio && d<=fim;
+});
+
+let total=dados.reduce((a,b)=>a+b.valor,0);
+
+document.getElementById('resultado').innerHTML=`
+<div class="card">
+Total: R$ ${total.toFixed(2)}<br>
+Registros: ${dados.length}
+</div>
+`;
+
+}else{
+
+let total=estoque.reduce((a,b)=>a+b.qtd,0);
+
+document.getElementById('resultado').innerHTML=`
+<div class="card">
+Total de itens: ${total}<br>
+Produtos: ${estoque.length}
+</div>
+`;
+}
+}
+
+// EXPORTAÇÃO
+function exportarWhats(){
+
+let tipo=document.getElementById('tipoRel').value;
+let texto="Relatório Burguer Pro:%0A";
+
+if(tipo=="fin"){
+financeiro.forEach(f=>{
+texto+=`R$ ${f.valor.toFixed(2)} - ${new Date(f.data).toLocaleDateString()}%0A`;
+});
+}else{
+estoque.forEach(e=>{
+texto+=`${e.nome} - ${e.qtd}%0A`;
+});
+}
+
+window.open(`https://wa.me/?text=${texto}`);
+}
+
+function exportarExcel(){
+
+let tipo=document.getElementById('tipoRel').value;
+let csv="";
+
+if(tipo=="fin"){
+csv="data,valor\n";
+financeiro.forEach(f=>{
+csv+=`${f.data},${f.valor}\n`;
+});
+}else{
+csv="produto,quantidade\n";
+estoque.forEach(e=>{
+csv+=`${e.nome},${e.qtd}\n`;
+});
+}
+
+let blob=new Blob([csv]);
+let a=document.createElement('a');
+a.href=URL.createObjectURL(blob);
+a.download="relatorio.csv";
+a.click();
+}
+
+// INIT
+render();
+renderHome();
+
+</script>
+
+</body>
+</html>
